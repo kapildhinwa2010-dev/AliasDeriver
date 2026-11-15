@@ -1,7 +1,8 @@
 # AliasDeriver
 
 [![CI](https://github.com/kapildhinwa2010-dev/AliasDeriver/actions/workflows/ci.yml/badge.svg)](https://github.com/kapildhinwa2010-dev/AliasDeriver/actions/workflows/ci.yml)
-[![CI](https://github.com/kapildhinwa2010-dev/AliasDeriver/actions/workflows/codeql.yml/badge.svg)](https://github.com/kapildhinwa2010-dev/AliasDeriver/actions/workflows/codeql.yml)
+[![CodeQL](https://github.com/kapildhinwa2010-dev/AliasDeriver/actions/workflows/codeql.yml/badge.svg)](https://github.com/kapildhinwa2010-dev/AliasDeriver/actions/workflows/codeql.yml)
+
 
 Canonical names and transitive alias groups derived from equality facts.
 
