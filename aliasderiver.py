@@ -1,18 +1,18 @@
-# AliasDeriver - Derive symmetric aliases from facts at query time
+# AliasDeriver - Canonical names and alias groups from equality facts
 # Part of the Kapildhinwa2010-dev Toolkit.
 
-"""KnowledgeNet - facts, alias derivation and chain reasoning.
+"""AliasDeriver - canonical names and alias groups from equality facts.
 
-Lineage: reserv.dean-part-2 (HELIX). Facts are stored as (subject, predicate,
-object) triples; aliases are derived transitively from equality facts; chain
-reasoning walks predicates to answer multi-hop queries.
+Lineage: reserv.dean-part-2 (HELIX). On top of the shared triple store
+this repo focuses on IDENTITY: derive transitive alias closures over
+configurable equality predicates ("same_as" by default), canonicalize
+any name to its group representative, and list alias groups. Storage,
+rules and chain walks live in the sibling repos.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
-
-import numpy as np
 
 __all__ = ["Fact", "KnowledgeNet"]
 
@@ -44,7 +44,7 @@ class Fact:
 
 
 class KnowledgeNet:
-    """Zero-overhead fact base with alias and chain reasoning."""
+    """Fact store with indexed direct and reverse queries."""
 
     def __init__(self) -> None:
         self._facts: set = set()
@@ -80,9 +80,16 @@ class KnowledgeNet:
 
     def derive_aliases(self) -> dict:
         """Transitive closure of ``same_as`` equality facts."""
+        return self.derive_aliases_from(["same_as"])
+
+    def derive_aliases_from(self, predicates) -> dict:
+        """Transitive closure over ANY of the given equality predicates."""
+        preds = set(predicates)
+        if not preds:
+            raise ValueError("predicates must be non-empty")
         adjacency: dict = defaultdict(set)
         for fact in self._facts:
-            if fact.predicate == "same_as":
+            if fact.predicate in preds:
                 adjacency[fact.subject].add(fact.object)
                 adjacency[fact.object].add(fact.subject)
         aliases: dict = {}
@@ -131,3 +138,16 @@ class KnowledgeNet:
                 scores[fact] = len(related)
         ranked = sorted(scores.items(), key=lambda kv: (-kv[1], kv[0].as_tuple()))
         return [fact for fact, _ in ranked[:top_k]]
+
+    def canonicalize(self, name: str) -> str:
+        """Canonical representative for ``name`` (itself if unaliased)."""
+        aliases = self.derive_aliases()
+        return aliases.get(name, name)
+
+    def alias_groups(self) -> list:
+        """Sorted alias groups (lists) with more than one member."""
+        aliases = self.derive_aliases()
+        groups: dict = {}
+        for member, canonical in aliases.items():
+            groups.setdefault(canonical, set()).add(member)
+        return sorted(sorted(g) for g in groups.values() if len(g) > 1)

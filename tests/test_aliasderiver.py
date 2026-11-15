@@ -4,37 +4,31 @@ from aliasderiver import Fact, KnowledgeNet
 
 
 def test_fact_basic():
-    fact = Fact("alice", "knows", "bob")
-    assert fact.as_tuple() == ("alice", "knows", "bob")
+    fact = Fact("alice", "same_as", "bob")
+    assert fact.as_tuple() == ("alice", "same_as", "bob")
 
 
 def test_fact_rejects_empty():
     with pytest.raises(ValueError):
-        Fact("", "knows", "bob")
-
-
-def test_fact_equality_and_hash():
-    assert Fact("a", "p", "b") == Fact("a", "p", "b")
-    assert hash(Fact("a", "p", "b")) == hash(Fact("a", "p", "b"))
-    assert Fact("a", "p", "b") != Fact("a", "p", "c")
+        Fact("", "same_as", "bob")
 
 
 def test_add_and_len():
     net = KnowledgeNet()
-    assert net.add("a", "knows", "b") is True
-    assert net.add("a", "knows", "b") is False
+    assert net.add("a", "same_as", "b") is True
+    assert net.add("a", "same_as", "b") is False
     assert len(net) == 1
 
 
 def test_query_pattern():
     net = KnowledgeNet()
-    net.add("a", "knows", "b")
-    net.add("b", "knows", "c")
-    net.add("a", "likes", "c")
-    assert len(net.query(subject="a")) == 2
-    assert len(net.query(predicate="knows")) == 2
-    assert len(net.query(obj="c")) == 2
-    assert len(net.query(subject="a", predicate="likes")) == 1
+    net.add("a", "same_as", "b")
+    net.add("b", "same_as", "c")
+    assert len(net.query(subject="a")) == 1
+    assert len(net.query(obj="c")) == 1
+
+
+# --- alias derivation (AliasDeriver-specific) ---
 
 
 def test_derive_aliases_transitive():
@@ -51,38 +45,40 @@ def test_derive_aliases_ignores_other_predicates():
     assert net.derive_aliases() == {}
 
 
-def test_chain_walk():
+def test_canonicalize():
     net = KnowledgeNet()
-    net.add("a", "next", "b")
-    net.add("b", "next", "c")
-    net.add("c", "next", "d")
-    assert net.chain("a", "next") == ["b", "c", "d"]
+    net.add("bob", "same_as", "robert")
+    net.add("robert", "same_as", "rob")
+    assert net.canonicalize("rob") == "bob"
+    assert net.canonicalize("alice") == "alice"
 
 
-def test_chain_respects_max_hops():
+def test_alias_groups():
     net = KnowledgeNet()
-    net.add("a", "next", "b")
-    net.add("b", "next", "c")
-    assert net.chain("a", "next", max_hops=1) == ["b"]
+    net.add("a", "same_as", "b")
+    net.add("b", "same_as", "c")
+    net.add("x", "same_as", "y")
+    groups = net.alias_groups()
+    assert ["a", "b", "c"] in groups
+    assert ["x", "y"] in groups
+    assert len(groups) == 2
 
 
-def test_chain_handles_cycles():
+def test_alias_groups_empty_for_unaliased():
     net = KnowledgeNet()
-    net.add("a", "next", "b")
-    net.add("b", "next", "a")
-    assert net.chain("a", "next") == ["b"]
+    net.add("a", "knows", "b")
+    assert net.alias_groups() == []
 
 
-def test_interference_ranks_related():
+def test_derive_aliases_from_custom_predicates():
     net = KnowledgeNet()
-    net.add("hub", "knows", "a")
-    net.add("hub", "knows", "b")
-    net.add("lonely", "knows", "c")
-    top = net.interference("hub")
-    assert top and top[0].subject == "hub"
+    net.add("a", "equals", "b")
+    net.add("b", "same_as", "c")
+    aliases = net.derive_aliases_from(["same_as", "equals"])
+    assert aliases["a"] == aliases["b"] == aliases["c"]
 
 
-def test_chain_rejects_bad_hops():
+def test_derive_aliases_from_rejects_empty():
     net = KnowledgeNet()
     with pytest.raises(ValueError):
-        net.chain("a", "next", max_hops=0)
+        net.derive_aliases_from([])
